@@ -1,0 +1,75 @@
+stages:
+  - test
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+
+.base_setup: &base_setup
+  image: python:3.9
+  before_script:
+    - python --version
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install pytest flake8
+
+# TEST - DEV
+test_dev:
+  stage: test
+  <<: *base_setup
+  script:
+    - echo " Ejecutando pruebas para DEV..."
+    - flake8 . --count --max-complexity=10 --max-line-length=127 --statistics
+    - pytest tests/ -v
+  only:
+    - develop
+  variables:
+    ENVIRONMENT: dev
+    SQLALCHEMY_DATABASE_URI: "mysql+pymysql://root@localhost/alumnos_dev"
+    SECRET_KEY: "dev_secret_key_123"
+
+# TEST - PROD
+test_prod:
+  stage: test
+  <<: *base_setup
+  script:
+    - echo " Ejecutando pruebas para PROD..."
+    - flake8 . --count --max-complexity=10 --max-line-length=127 --statistics
+    - pytest tests/ -v
+  only:
+    - main
+  variables:
+    ENVIRONMENT: prod
+    SQLALCHEMY_DATABASE_URI: "mysql+pymysql://root@localhost/alumnos_prod"
+    SECRET_KEY: "prod_secret_key_456"
+
+# DEPLOY - DEV (automático)
+deploy_dev:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - echo "Desplegando en entorno DEV..."
+    - echo "Despliegue DEV completado"
+  environment:
+    name: dev
+    url: https://dev-api.examen.com
+  only:
+    - develop
+
+# DEPLOY - PROD (manual)
+deploy_prod:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - echo "Desplegando en entorno PROD..."
+    - echo "Despliegue PROD completado"
+  environment:
+    name: prod
+    url: https://api.examen.com
+  only:
+    - main
+  when: manual
